@@ -1,6 +1,6 @@
 # Binsmith
 
-An AI agent that works by running shell commands and writing scripts.
+An AI agent that works by running shell commands and writing reusable, composable CLIs.
 Tools it creates persist across sessions.
 
 ## The idea

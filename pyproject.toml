@@ -1,6 +1,6 @@
 [project]
 name = "binsmith"
-version = "0.3.0"
+version = "0.3.1"
 description = "A bash-native AI agent that builds its own toolkit"
 readme = "README.md"
 license = "MIT"

@@ -37,7 +37,7 @@ jobs:
           npm run build
 
       - name: Build
-        run: uv build
+        run: uv build --wheel
 
       - name: Publish
         run: uv publish

@@ -70,9 +70,14 @@ binsmith server          # Run the API server
 ### `binsmith tui`
 
 ```
---server <url>           Connect to a running Binsmith server (default: $BINSMITH_SERVER_URL)
---allow-cross-project    Allow connecting to a localhost server from a different project
+--server <url>           Connect to a specific Binsmith server
+--local                  Force local mode (skip server auto-discovery)
 ```
+
+By default, the TUI checks if a server is running on `localhost:8000`. If the server
+is for the same project, it connects automatically. Otherwise, it runs in local
+(in-process) mode. Use `--local` to skip auto-discovery, or `--server` to connect
+to a specific server (local or remote).
 
 ### `binsmith server`
 
@@ -172,14 +177,14 @@ Run `/model list` to see available models.
 
 ## Web UI
 
+The web UI is bundled with the server. Just run:
+
 ```bash
-cd frontend
-npm install
-npm run dev
+binsmith server
 ```
 
-Connects to `http://localhost:8000` by default. Override with
-`VITE_BINSMITH_SERVER_URL` in `frontend/.env.local`.
+Then open `http://localhost:8000` in your browser. The web UI and TUI share
+the same backend — threads, history, and tools are synchronized.
 
 ## TUI commands
 
@@ -206,13 +211,15 @@ Connects to `http://localhost:8000` by default. Override with
 | `BINSMITH_SERVER_URL` | *(unset)* | Server URL for clients that connect over HTTP |
 | `BINSMITH_LOGFIRE` | `0` | Enable Logfire telemetry |
 
-## Running the server directly
+## Running the server
 
 ```bash
 binsmith server
-# or
-uvicorn binsmith.server.asgi:app --reload --port 8000
 ```
 
-Run the server separately if you want the web UI (or multiple clients) to connect
-over HTTP.
+This starts the API server with the web UI at `http://localhost:8000`. Run the
+server when you want:
+
+- The web UI
+- Multiple TUI clients sharing the same backend
+- Remote access (use `--host 0.0.0.0`)

@@ -1,0 +1,156 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;700&family=Spline+Sans:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    @apply border-ink-200;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  body {
+    font-family: "Spline Sans", ui-sans-serif, system-ui, sans-serif;
+    background: radial-gradient(circle at top right, rgba(20, 184, 166, 0.05), transparent 40%),
+      radial-gradient(circle at top left, rgba(249, 115, 22, 0.05), transparent 40%),
+      linear-gradient(135deg, #fdfcfb 0%, #f7f3ef 100%);
+    color: #1b1a17;
+    /* Use overscroll-behavior to prevent pull-to-refresh and bounce */
+    overscroll-behavior-y: none;
+  }
+
+  #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  /* Smooth scrolling for the whole app */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: "Fraunces", serif;
+  }
+
+  ::selection {
+    background: rgba(14, 116, 144, 0.2);
+  }
+}
+
+@layer utilities {
+  .bg-glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.45));
+    backdrop-filter: blur(12px);
+  }
+
+  @media (max-width: 768px) {
+    .bg-glass {
+      background: white;
+      backdrop-filter: none;
+    }
+  }
+
+  /* Radix ScrollArea Fix */
+  [data-radix-scroll-area-viewport] > div {
+    display: block !important;
+  }
+
+  /* Force wrapping for all code and pre tags */
+  pre, code {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+  }
+
+  .bg-dashed {
+    background-image: radial-gradient(rgba(148, 163, 184, 0.4) 0.5px, transparent 0.5px);
+    background-size: 16px 16px;
+  }
+}
+
+.prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  background-color: rgba(15, 118, 110, 0.12);
+  border-radius: 0.35rem;
+  padding: 0.15rem 0.35rem;
+  font-weight: 600;
+}
+
+.prose pre {
+  background: rgba(15, 118, 110, 0.08);
+  border: 1px solid rgba(14, 116, 144, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.prose code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* Prevent iOS zoom on input focus */
+@media screen and (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Hide desktop-only hints on mobile */
+@media (max-width: 640px) {
+  .desktop-hint {
+    display: none;
+  }
+}
+
+/* Prevent iOS text selection and zoom on tap */
+input, textarea {
+  font-size: 16px !important;
+  touch-action: manipulation;
+}
+
+/* Ensure the main container actually respects the 100dvh */
+.mobile-app-container {
+  height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+

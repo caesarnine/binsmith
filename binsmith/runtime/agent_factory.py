@@ -509,7 +509,7 @@ def format_tools_section(tools: list[tuple[str, str]], workspace: Path) -> str:
 
 
 def _configure_telemetry() -> None:
-    enabled = os.getenv("BINSMITH_LOGFIRE", "1").lower() in {"1", "true", "yes"}
+    enabled = os.getenv("BINSMITH_LOGFIRE", "0").lower() in {"1", "true", "yes"}
     if not enabled:
         return
     logfire.configure(send_to_logfire=True, console=False)

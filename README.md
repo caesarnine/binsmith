@@ -205,7 +205,7 @@ Connects to `http://localhost:8000` by default. Override with
 | `BINSMITH_MODEL` | `google-gla:gemini-3-flash-preview` | Default model |
 | `BINSMITH_WORKSPACE_MODE` | `local` | `local` (per-project) or `central` (~/.binsmith) |
 | `BINSMITH_SERVER_URL` | `http://localhost:8000` | Server URL for clients |
-| `BINSMITH_LOGFIRE` | `1` | Enable Logfire telemetry |
+| `BINSMITH_LOGFIRE` | `0` | Enable Logfire telemetry |
 
 ## Running the server directly
 

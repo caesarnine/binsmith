@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -160,8 +159,7 @@ class BinsmithApp(App):
     def __init__(
         self,
         *,
-        server_url: str,
-        server_process: subprocess.Popen | None = None,
+        client: BinsmithClient,
     ):
         super().__init__()
         self.session_id = "..."
@@ -170,9 +168,7 @@ class BinsmithApp(App):
         self._default_model: str | None = None
         self._model_cache: list[str] | None = None
         self._model_loading = False
-        self.server_url = server_url
-        self.client = BinsmithClient(self.server_url)
-        self._server_process = server_process
+        self.client = client
         self._command_suggester = _CommandSuggester(
             commands=[
                 "/help",
@@ -233,12 +229,6 @@ class BinsmithApp(App):
 
     async def on_shutdown(self) -> None:
         await self.client.close()
-        if self._server_process and self._server_process.poll() is None:
-            self._server_process.terminate()
-            try:
-                self._server_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self._server_process.kill()
 
     # -------------------------------------------------------------------------
     # Actions
@@ -746,7 +736,6 @@ class BinsmithApp(App):
 
 def run_tui(
     *,
-    server_url: str,
-    server_process: subprocess.Popen | None = None,
+    client: BinsmithClient,
 ) -> None:
-    BinsmithApp(server_url=server_url, server_process=server_process).run()
+    BinsmithApp(client=client).run()

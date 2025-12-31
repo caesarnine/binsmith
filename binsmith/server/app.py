@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import importlib.metadata
 import logging
+import os
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +36,7 @@ from binsmith.protocol.models import (
     ThreadDeleteResponse,
     ThreadListResponse,
     ThreadMessagesResponse,
+    ServerInfoResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,6 +66,21 @@ def create_app(config: StorageConfig | None = None) -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/info", response_model=ServerInfoResponse)
+    async def info() -> ServerInfoResponse:
+        try:
+            version = importlib.metadata.version("binsmith")
+        except importlib.metadata.PackageNotFoundError:  # pragma: no cover
+            version = "unknown"
+        return ServerInfoResponse(
+            version=version,
+            pid=os.getpid(),
+            project_root=str(ctx.project_root),
+            data_dir=str(ctx.config.data_dir),
+            workspace_dir=str(ctx.workspace),
+            workspace_mode=ctx.config.workspace_mode,
+        )
 
     @app.get("/session")
     async def api_session() -> dict[str, str]:

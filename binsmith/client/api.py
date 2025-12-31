@@ -8,6 +8,7 @@ from ag_ui.core import Event, RunAgentInput
 from binsmith.client.streaming import iter_ag_ui_events
 from binsmith.protocol.models import (
     ModelListResponse,
+    ServerInfoResponse,
     SessionModelRequest,
     SessionModelResponse,
     ThreadClearResponse,
@@ -88,6 +89,11 @@ class BinsmithClient:
         if not session_id:
             raise ValueError("Server did not return a session id.")
         return session_id
+
+    async def get_server_info(self) -> ServerInfoResponse:
+        response = await self._client.get("/info")
+        self._raise_for_status(response, "Failed to load server info")
+        return ServerInfoResponse.model_validate(response.json())
 
     async def list_models(self) -> ModelListResponse:
         response = await self._client.get("/models")

@@ -31,9 +31,9 @@ San Francisco: 62°F, partly cloudy
 That `brief` command didn't exist until you needed it. Now it does, and it
 builds on tools that already existed.
 
-Binsmith uses a server/client architecture. The TUI and web UI are interchangeable
-clients — they talk to the same server, share the same threads, and see the
-same toolkit.
+Binsmith uses a server/client architecture. The TUI runs with an in-process server
+by default, or can connect to a standalone server. The web UI connects to a
+standalone server.
 
 ## Requirements
 
@@ -54,7 +54,7 @@ uv sync
 binsmith
 ```
 
-This starts the TUI, which auto-starts a local server.
+This starts the TUI, which runs a local in-process server by default.
 
 Set `GEMINI_API_KEY` for the default model (Gemini Flash), or `ANTHROPIC_API_KEY`
 / `OPENAI_API_KEY` for alternatives. See [Models](#models).
@@ -70,9 +70,8 @@ binsmith server          # Run the API server
 ### `binsmith tui`
 
 ```
---server <url>           Binsmith server base URL (default: http://localhost:8000)
---no-autostart           Do not auto-start a local server if missing
---server-workspace       Workspace mode for auto-started server: local | central
+--server <url>           Connect to a running Binsmith server (default: $BINSMITH_SERVER_URL)
+--allow-cross-project    Allow connecting to a localhost server from a different project
 ```
 
 ### `binsmith server`
@@ -81,7 +80,7 @@ binsmith server          # Run the API server
 --host <host>            Host interface to bind (default: 127.0.0.1)
 --port <port>            Port to bind (default: 8000)
 --reload                 Enable auto-reload
---local-workspace        Use a project-local .binsmith workspace on the server
+--workspace              Workspace mode: local | central
 ```
 
 ## What the agent builds
@@ -204,7 +203,7 @@ Connects to `http://localhost:8000` by default. Override with
 |----------|---------|-------------|
 | `BINSMITH_MODEL` | `google-gla:gemini-3-flash-preview` | Default model |
 | `BINSMITH_WORKSPACE_MODE` | `local` | `local` (per-project) or `central` (~/.binsmith) |
-| `BINSMITH_SERVER_URL` | `http://localhost:8000` | Server URL for clients |
+| `BINSMITH_SERVER_URL` | *(unset)* | Server URL for clients that connect over HTTP |
 | `BINSMITH_LOGFIRE` | `0` | Enable Logfire telemetry |
 
 ## Running the server directly
@@ -215,5 +214,5 @@ binsmith server
 uvicorn binsmith.server.asgi:app --reload --port 8000
 ```
 
-The TUI auto-starts a server if needed, so this is mainly for development
-or running a shared server.
+Run the server separately if you want the web UI (or multiple clients) to connect
+over HTTP.

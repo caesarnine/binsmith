@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
-import time
 from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
 import uvicorn
 
+from binsmith.client import BinsmithClient
+from binsmith.client.inprocess import create_inprocess_client
 from binsmith.tui.app import run_tui
 
-DEFAULT_SERVER_URL = os.getenv("BINSMITH_SERVER_URL", "http://localhost:8000")
+DEFAULT_SERVER_URL = os.getenv("BINSMITH_SERVER_URL")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -55,22 +55,18 @@ def _add_tui_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--server",
         default=DEFAULT_SERVER_URL,
-        help="Binsmith server base URL (default: %(default)s)",
+        help="Binsmith server base URL (default: $BINSMITH_SERVER_URL)",
     )
     parser.add_argument(
-        "--no-autostart",
+        "--allow-cross-project",
         action="store_true",
-        help="Do not auto-start a local server if missing",
-    )
-    parser.add_argument(
-        "--server-workspace",
-        choices=("local", "central"),
-        default="local",
-        help="Workspace mode for an auto-started server (default: %(default)s)",
+        help="Allow connecting to a localhost server from a different project",
     )
 
 
 def _add_server_args(parser: argparse.ArgumentParser) -> None:
+    env_workspace = (os.getenv("BINSMITH_WORKSPACE_MODE") or "").strip().lower()
+    default_workspace = "central" if env_workspace == "central" else "local"
     parser.add_argument(
         "--host",
         default="127.0.0.1",
@@ -88,45 +84,26 @@ def _add_server_args(parser: argparse.ArgumentParser) -> None:
         help="Enable auto-reload",
     )
     parser.add_argument(
-        "--local-workspace",
-        action="store_true",
-        help="Use a project-local .binsmith workspace on the server",
+        "--workspace",
+        choices=("local", "central"),
+        default=default_workspace,
+        help="Workspace mode (default: %(default)s)",
     )
 
 
 def _run_tui_command(args: argparse.Namespace) -> None:
-    server_url = _normalize_server_url(args.server)
     project_root = Path.cwd()
 
-    autostart = _autostart_enabled(args)
-    server_process = _ensure_server(
-        server_url,
-        autostart=autostart,
-        project_root=project_root,
-        local_workspace=(args.server_workspace == "local"),
-    )
-
-    try:
-        run_tui(server_url=server_url, server_process=server_process)
-    finally:
-        if server_process and server_process.poll() is None:
-            _stop_process(server_process)
+    client = _create_tui_client(args, project_root=project_root)
+    run_tui(client=client)
 
 
 def _run_server_command(args: argparse.Namespace) -> None:
     project_root = Path.cwd()
     os.environ.setdefault("BINSMITH_PROJECT_ROOT", str(project_root))
-    if args.local_workspace:
-        os.environ.setdefault("BINSMITH_WORKSPACE_MODE", "local")
+    os.environ.setdefault("BINSMITH_WORKSPACE_MODE", args.workspace)
 
     uvicorn.run("binsmith.server.asgi:app", host=args.host, port=args.port, reload=args.reload)
-
-
-def _autostart_enabled(args: argparse.Namespace) -> bool:
-    if args.no_autostart:
-        return False
-    env_value = os.getenv("BINSMITH_SERVER_AUTOSTART", "1").strip().lower()
-    return env_value not in {"0", "false", "no"}
 
 
 def _normalize_server_url(url: str) -> str:
@@ -148,30 +125,6 @@ def _is_local_url(url: str) -> bool:
     return host in {"localhost", "127.0.0.1", "::1"}
 
 
-def _ensure_server(
-    server_url: str,
-    *,
-    autostart: bool,
-    project_root: Path,
-    local_workspace: bool,
-) -> subprocess.Popen | None:
-    if _server_healthy(server_url):
-        return None
-
-    if not autostart:
-        _exit_unavailable(server_url)
-
-    if not _is_local_url(server_url):
-        _exit_unavailable(server_url)
-
-    process = _start_local_server(server_url, project_root, local_workspace)
-    if not _wait_for_server(server_url):
-        _stop_process(process)
-        raise SystemExit("Server failed to start; check logs or port availability.")
-
-    return process
-
-
 def _server_healthy(server_url: str) -> bool:
     try:
         response = httpx.get(f"{server_url}/health", timeout=1.0)
@@ -180,63 +133,49 @@ def _server_healthy(server_url: str) -> bool:
     return response.status_code == 200
 
 
-def _wait_for_server(server_url: str, timeout: float = 10.0, interval: float = 0.2) -> bool:
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if _server_healthy(server_url):
-            return True
-        time.sleep(interval)
-    return False
+def _create_tui_client(args: argparse.Namespace, *, project_root: Path) -> BinsmithClient:
+    server = getattr(args, "server", None)
+    if server:
+        server_url = _normalize_server_url(server)
+        if not _server_healthy(server_url):
+            print(
+                f"Binsmith server not reachable at {server_url}. Start it with `binsmith server`.",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+
+        if _is_local_url(server_url) and not args.allow_cross_project:
+            _validate_local_server_project(server_url, project_root=project_root)
+
+        return BinsmithClient(server_url)
+
+    client, _ = create_inprocess_client(project_root=project_root, workspace_mode="local")
+    return client
 
 
-def _start_local_server(
-    server_url: str,
-    project_root: Path,
-    local_workspace: bool,
-) -> subprocess.Popen:
-    parsed = urlparse(server_url)
-    host = parsed.hostname or "127.0.0.1"
-    port = parsed.port or 8000
-
-    env = os.environ.copy()
-    env["BINSMITH_PROJECT_ROOT"] = str(project_root)
-    if local_workspace:
-        env["BINSMITH_WORKSPACE_MODE"] = "local"
-
-    cmd = [
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "binsmith.server.asgi:app",
-        "--host",
-        host,
-        "--port",
-        str(port),
-    ]
-
-    return subprocess.Popen(
-        cmd,
-        cwd=project_root,
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-
-
-def _stop_process(process: subprocess.Popen) -> None:
-    if process.poll() is not None:
-        return
-    process.terminate()
+def _validate_local_server_project(server_url: str, *, project_root: Path) -> None:
     try:
-        process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        process.kill()
+        info = httpx.get(f"{server_url}/info", timeout=2.0).json()
+    except Exception:
+        return
 
+    server_root = info.get("project_root")
+    if not isinstance(server_root, str) or not server_root:
+        return
 
-def _exit_unavailable(server_url: str) -> None:
-    print(
-        f"Binsmith server not reachable at {server_url}. "
-        "Start it with `binsmith server` or pass --no-autostart to disable checks.",
-        file=sys.stderr,
-    )
-    raise SystemExit(1)
+    try:
+        expected = project_root.resolve()
+        actual = Path(server_root).resolve()
+    except OSError:
+        return
+
+    if actual != expected:
+        print(
+            "Refusing to connect to a different project.\n"
+            f"- Server: {server_url}\n"
+            f"- Server project_root: {actual}\n"
+            f"- Current project_root: {expected}\n"
+            "Run without `--server` for strict local mode, or pass `--allow-cross-project`.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)

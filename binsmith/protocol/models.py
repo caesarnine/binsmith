@@ -47,3 +47,12 @@ class SessionModelResponse(BaseModel):
     model: str
     default_model: str
     is_default: bool
+
+
+class ServerInfoResponse(BaseModel):
+    version: str
+    pid: int
+    project_root: str
+    data_dir: str
+    workspace_dir: str
+    workspace_mode: Literal["central", "local"]

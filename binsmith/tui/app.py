@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from binsmith.cli import ConnectionInfo
 
 from ag_ui.core import (
     BaseEvent,
@@ -160,6 +163,7 @@ class BinsmithApp(App):
         self,
         *,
         client: BinsmithClient,
+        connection_info: ConnectionInfo | None = None,
     ):
         super().__init__()
         self.session_id = "..."
@@ -169,6 +173,7 @@ class BinsmithApp(App):
         self._model_cache: list[str] | None = None
         self._model_loading = False
         self.client = client
+        self.connection_info = connection_info
         self._command_suggester = _CommandSuggester(
             commands=[
                 "/help",
@@ -728,14 +733,20 @@ class BinsmithApp(App):
         if not self._mounted:
             return
         header_right = self.query_one("#header-right", Static)
+
+        # Build header parts: thread | model | connection
+        parts = [self.thread_id]
         if self.model_name:
-            header_right.update(f"{self.thread_id} | {self.model_name}")
-        else:
-            header_right.update(self.thread_id)
+            parts.append(self.model_name)
+        if self.connection_info:
+            parts.append(self.connection_info.header_label)
+
+        header_right.update(" | ".join(parts))
 
 
 def run_tui(
     *,
     client: BinsmithClient,
+    connection_info: ConnectionInfo | None = None,
 ) -> None:
-    BinsmithApp(client=client).run()
+    BinsmithApp(client=client, connection_info=connection_info).run()

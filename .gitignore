@@ -11,6 +11,7 @@ wheels/
 
 # Binsmith
 .binsmith
+binsmith/web/static/
 
 # Node / frontend
 node_modules/

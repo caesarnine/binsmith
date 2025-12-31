@@ -7,11 +7,13 @@ import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic_ai.exceptions import UserError
 from pydantic_ai.ui.ag_ui import AGUIAdapter
 from ag_ui.encoder import EventEncoder
 
 from binsmith.config import StorageConfig, load_storage_config, load_or_create_session_id
+from binsmith.web import get_static_dir
 from binsmith.core.messages import merge_messages
 from binsmith.persistence.sqlite_store import SQLiteSessionStore
 from binsmith.runtime import create_deps, get_agent, sync_global_tools
@@ -236,5 +238,10 @@ def create_app(config: StorageConfig | None = None) -> FastAPI:
 
         stream = adapter.run_stream(deps=deps, message_history=message_history, on_complete=on_complete)
         return adapter.streaming_response(stream)
+
+    # Mount static files for web UI (must be last to act as SPA catch-all)
+    static_dir = get_static_dir()
+    if static_dir.exists():
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="web")
 
     return app

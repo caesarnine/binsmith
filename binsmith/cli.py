@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -14,6 +15,29 @@ from binsmith.client.inprocess import create_inprocess_client
 from binsmith.tui.app import run_tui
 
 DEFAULT_SERVER_URL = os.getenv("BINSMITH_SERVER_URL")
+DEFAULT_AUTO_DISCOVER_PORT = 8000
+
+
+@dataclass
+class ConnectionInfo:
+    """Information about the TUI's connection mode."""
+
+    mode: str  # "server" or "local"
+    server_url: str | None = None
+
+    @property
+    def status_message(self) -> str:
+        if self.mode == "server" and self.server_url:
+            return f"Connecting to {self.server_url}..."
+        return "Starting in local mode..."
+
+    @property
+    def header_label(self) -> str:
+        if self.mode == "server" and self.server_url:
+            # Extract host:port for display
+            parsed = urlparse(self.server_url)
+            return f":{parsed.port}" if parsed.port else parsed.netloc
+        return "local"
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -55,12 +79,12 @@ def _add_tui_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--server",
         default=DEFAULT_SERVER_URL,
-        help="Binsmith server base URL (default: $BINSMITH_SERVER_URL)",
+        help="Connect to a specific Binsmith server URL",
     )
     parser.add_argument(
-        "--allow-cross-project",
+        "--local",
         action="store_true",
-        help="Allow connecting to a localhost server from a different project",
+        help="Force local mode (skip server auto-discovery)",
     )
 
 
@@ -94,8 +118,9 @@ def _add_server_args(parser: argparse.ArgumentParser) -> None:
 def _run_tui_command(args: argparse.Namespace) -> None:
     project_root = Path.cwd()
 
-    client = _create_tui_client(args, project_root=project_root)
-    run_tui(client=client)
+    client, connection_info = _create_tui_client(args, project_root=project_root)
+    print(connection_info.status_message)
+    run_tui(client=client, connection_info=connection_info)
 
 
 def _run_server_command(args: argparse.Namespace) -> None:
@@ -115,16 +140,6 @@ def _normalize_server_url(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-def _is_local_url(url: str) -> bool:
-    parsed = urlparse(url)
-    host = parsed.hostname
-    if not host:
-        return False
-    if parsed.scheme not in {"http", ""}:
-        return False
-    return host in {"localhost", "127.0.0.1", "::1"}
-
-
 def _server_healthy(server_url: str) -> bool:
     try:
         response = httpx.get(f"{server_url}/health", timeout=1.0)
@@ -133,7 +148,35 @@ def _server_healthy(server_url: str) -> bool:
     return response.status_code == 200
 
 
-def _create_tui_client(args: argparse.Namespace, *, project_root: Path) -> BinsmithClient:
+def _is_same_project(server_url: str, project_root: Path) -> bool:
+    """Check if the server is running for the same project."""
+    try:
+        info = httpx.get(f"{server_url}/info", timeout=2.0).json()
+    except Exception:
+        return False
+
+    server_root = info.get("project_root")
+    if not isinstance(server_root, str) or not server_root:
+        return False
+
+    try:
+        expected = project_root.resolve()
+        actual = Path(server_root).resolve()
+    except OSError:
+        return False
+
+    return actual == expected
+
+
+def _create_tui_client(
+    args: argparse.Namespace, *, project_root: Path
+) -> tuple[BinsmithClient, ConnectionInfo]:
+    # --local flag: skip all discovery, use in-process
+    if getattr(args, "local", False):
+        client, _ = create_inprocess_client(project_root=project_root, workspace_mode="local")
+        return client, ConnectionInfo(mode="local")
+
+    # --server URL: explicit connection (no project validation)
     server = getattr(args, "server", None)
     if server:
         server_url = _normalize_server_url(server)
@@ -143,39 +186,15 @@ def _create_tui_client(args: argparse.Namespace, *, project_root: Path) -> Binsm
                 file=sys.stderr,
             )
             raise SystemExit(1)
+        return BinsmithClient(server_url), ConnectionInfo(mode="server", server_url=server_url)
 
-        if _is_local_url(server_url) and not args.allow_cross_project:
-            _validate_local_server_project(server_url, project_root=project_root)
+    # Auto-discovery: check default port, validate project
+    auto_url = f"http://127.0.0.1:{DEFAULT_AUTO_DISCOVER_PORT}"
+    if _server_healthy(auto_url):
+        if _is_same_project(auto_url, project_root):
+            return BinsmithClient(auto_url), ConnectionInfo(mode="server", server_url=auto_url)
+        # Different project - silently fall back to local
 
-        return BinsmithClient(server_url)
-
+    # Fallback: in-process
     client, _ = create_inprocess_client(project_root=project_root, workspace_mode="local")
-    return client
-
-
-def _validate_local_server_project(server_url: str, *, project_root: Path) -> None:
-    try:
-        info = httpx.get(f"{server_url}/info", timeout=2.0).json()
-    except Exception:
-        return
-
-    server_root = info.get("project_root")
-    if not isinstance(server_root, str) or not server_root:
-        return
-
-    try:
-        expected = project_root.resolve()
-        actual = Path(server_root).resolve()
-    except OSError:
-        return
-
-    if actual != expected:
-        print(
-            "Refusing to connect to a different project.\n"
-            f"- Server: {server_url}\n"
-            f"- Server project_root: {actual}\n"
-            f"- Current project_root: {expected}\n"
-            "Run without `--server` for strict local mode, or pass `--allow-cross-project`.",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
+    return client, ConnectionInfo(mode="local")

@@ -66,7 +66,7 @@ All Lattis flags are supported, including `--server`, `--local`, and
 After a few days of use, a toolkit might look like:
 
 ```
-.binsmith/workspace/bin/
+.lattis/workspace/bin/
   fetch-url     # Fetch a URL, handle retries, extract text
   html2md       # Convert HTML to clean markdown
   news          # Top stories from news sources
@@ -87,7 +87,7 @@ Binsmith has one tool: `bash`. It runs commands in your project directory with
 `workspace/bin` on the PATH. The workspace persists between runs.
 
 ```
-.binsmith/
+.lattis/
   lattis.db
   session_id
   workspace/
@@ -174,5 +174,5 @@ Then open `http://localhost:8000` in your browser.
 
 [Lattis](https://github.com/caesarnine/lattis) configuration (storage, server URLs, workspace mode) is controlled via
 `LATTIS_*` environment variables; see the Lattis README for details.
-By default, Binsmith uses `.binsmith/` in local mode and `~/.binsmith/` in
+By default, Binsmith uses `.lattis/` in local mode and `~/.lattis/` in
 central mode. Override with `LATTIS_DATA_DIR` if needed.

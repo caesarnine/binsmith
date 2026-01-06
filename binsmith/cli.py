@@ -8,5 +8,4 @@ from lattis.cli import main as lattis_main
 
 def main(argv: Sequence[str] | None = None) -> None:
     os.environ.setdefault("AGENT_DEFAULT", "binsmith")
-    os.environ.setdefault("LATTIS_DATA_DIR_NAME", "binsmith")
     lattis_main(list(argv) if argv is not None else None)

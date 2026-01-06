@@ -1,6 +1,6 @@
 [project]
 name = "binsmith"
-version = "0.2.0"
+version = "0.2.1"
 description = "Binsmith agent plugin for Lattis"
 readme = "README.md"
 license = "MIT"

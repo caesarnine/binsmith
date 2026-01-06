@@ -58,8 +58,8 @@ binsmith tui             # Run the TUI explicitly
 binsmith server          # Run the API server (and web UI, if built)
 ```
 
-All Lattis flags are supported, including `--server`, `--local`, and
-`--workspace`. See the Lattis README for the full CLI reference.
+All Lattis flags are supported, including `--server` and `--local`. See the
+Lattis README for the full CLI reference.
 
 ## What the agent builds
 
@@ -172,7 +172,7 @@ Then open `http://localhost:8000` in your browser.
 | `BINSMITH_MODEL` | `google-gla:gemini-3-flash-preview` | Default model |
 | `BINSMITH_LOGFIRE` | `0` | Enable Logfire telemetry |
 
-[Lattis](https://github.com/caesarnine/lattis) configuration (storage, server URLs, workspace mode) is controlled via
+[Lattis](https://github.com/caesarnine/lattis) configuration (storage, server URLs) is controlled via
 `LATTIS_*` environment variables; see the Lattis README for details.
-By default, Binsmith uses `.lattis/` in local mode and `~/.lattis/` in
-central mode. Override with `LATTIS_DATA_DIR` if needed.
+By default, Binsmith stores data in `.lattis/` under the project root.
+Override with `LATTIS_DATA_DIR` if needed.

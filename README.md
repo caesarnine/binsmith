@@ -52,7 +52,7 @@ Use with Lattis directly:
 
 ```bash
 uv add binsmith
-uv run lattis
+LATTIS_DATA_DIR_NAME=binsmith uv run lattis
 ```
 
 Or clone and run locally:

@@ -1,10 +1,7 @@
 # Binsmith
 
-Binsmith is a toolkit-focused agent that runs inside Lattis. It solves problems
-by creating reusable, composable CLIs that persist across sessions.
-
-The `binsmith` CLI is a thin wrapper around `lattis` that sets the default agent
-and passes through all Lattis commands and flags.
+An AI agent that works by running shell commands and writing reusable, composable CLIs.
+Tools it creates persist across sessions.
 
 ## The idea
 
@@ -46,16 +43,7 @@ builds on tools that already existed.
 uvx binsmith
 ```
 
-This starts the TUI (via Lattis) with Binsmith as the default agent.
-
-Use with Lattis directly:
-
-```bash
-uv add binsmith
-LATTIS_DATA_DIR_NAME=binsmith uv run lattis
-```
-
-Or clone and run locally:
+This starts the TUI (via [Lattis](https://github.com/caesarnine/lattis)) with Binsmith as the default agent.
 
 ```bash
 uv sync
@@ -92,9 +80,6 @@ After a few days of use, a toolkit might look like:
 Each tool is a standalone, self-contained script that works for both you and
 Binsmith. Python scripts use inline script metadata so dependencies are declared
 in the file itself. Just run the script and `uv` handles the rest.
-
-Tools live in the workspace `bin/` directory. Binsmith does not install or
-symlink tools into global paths.
 
 ## How it works
 
@@ -156,7 +141,7 @@ Run `/model list` to see available models.
 
 ## Web UI
 
-The web UI is bundled with the Lattis server. Just run:
+The web UI is bundled with the [Lattis server](https://github.com/caesarnine/lattis). Just run:
 
 ```bash
 binsmith server
@@ -187,7 +172,7 @@ Then open `http://localhost:8000` in your browser.
 | `BINSMITH_MODEL` | `google-gla:gemini-3-flash-preview` | Default model |
 | `BINSMITH_LOGFIRE` | `0` | Enable Logfire telemetry |
 
-Lattis configuration (storage, server URLs, workspace mode) is controlled via
+[Lattis](https://github.com/caesarnine/lattis) configuration (storage, server URLs, workspace mode) is controlled via
 `LATTIS_*` environment variables; see the Lattis README for details.
 By default, Binsmith uses `.binsmith/` in local mode and `~/.binsmith/` in
 central mode. Override with `LATTIS_DATA_DIR` if needed.

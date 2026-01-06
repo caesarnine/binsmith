@@ -1,0 +1,38 @@
+[project]
+name = "binsmith"
+version = "0.1.0"
+description = "Binsmith agent plugin for Lattis"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+keywords = ["ai", "agent", "cli", "automation", "tools"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+    "lattis>=0.5.0",
+    "logfire>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/caesarnine/binsmith"
+Repository = "https://github.com/caesarnine/binsmith"
+Issues = "https://github.com/caesarnine/binsmith/issues"
+
+[project.scripts]
+binsmith = "binsmith.cli:main"
+
+[project.entry-points."lattis.agents"]
+binsmith = "binsmith.plugin:plugin"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["binsmith"]

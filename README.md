@@ -1,17 +1,10 @@
 # Binsmith
 
-An AI agent that works by running shell commands and writing reusable, composable CLIs.
-Tools it creates persist across sessions.
+An AI agent that builds its own toolkit.
 
-## The idea
+Most agents are stateless—they solve problems, then forget everything. Binsmith takes a different approach: when it does something useful, it writes a script. That script goes into a persistent toolkit.
 
-Most AI agents are stateless. They solve problems, then forget everything.
-Binsmith takes a different approach: when it does something useful, it writes
-a script. That script goes into a persistent toolkit.
-
-Ask Binsmith to fetch a webpage, and it writes `fetch-url`. Ask it to convert
-HTML to markdown, and it writes `html2md`. A week later, when you ask for a
-daily briefing, it composes them:
+Ask it to fetch a webpage, it writes `fetch-url`. Ask it to convert HTML to markdown, it writes `html2md`. A week later, when you ask for a daily briefing, it composes them:
 
 ```
 $ brief
@@ -28,14 +21,7 @@ San Francisco: 62°F, partly cloudy
 - [ ] Write README improvements
 ```
 
-That `brief` command did not exist until you needed it. Now it does, and it
-builds on tools that already existed.
-
-## Requirements
-
-- [uv](https://docs.astral.sh/uv/)
-- Python 3.12+ (uv can install it automatically)
-- An API key for at least one model provider (Gemini, Anthropic, or OpenAI)
+That `brief` command didn't exist until you needed it. Now it does, and it builds on tools that already existed. The more you use Binsmith, the more capable it becomes.
 
 ## Quick start
 
@@ -43,27 +29,36 @@ builds on tools that already existed.
 uvx binsmith
 ```
 
-This starts the TUI (via [Lattis](https://github.com/caesarnine/lattis)) with Binsmith as the default agent.
+This starts the TUI with Binsmith as the default agent. You can also run the server for access from other devices:
 
 ```bash
-uv sync
-uv run binsmith
+uvx binsmith server
+# Then open http://localhost:8000
 ```
 
-## CLI
+Binsmith is a [Lattis](https://github.com/caesarnine/lattis) plugin. If you want to run it alongside other agents or access it remotely, see the Lattis README.
 
-```bash
-binsmith                 # Run the TUI (default)
-binsmith tui             # Run the TUI explicitly
-binsmith server          # Run the API server (and web UI, if built)
+## How it works
+
+Binsmith has one tool: `bash`. It runs commands in your project directory with `workspace/bin` on the PATH. That's it.
+
+The magic is in the prompt. On each run, Binsmith sees its current toolkit and is instructed to:
+
+1. **Check existing tools first** — don't reinvent what's already there
+2. **Build tools for repeated work** — if you do it twice, script it
+3. **Improve, don't duplicate** — enhance existing tools rather than creating variants
+
+```
+.lattis/
+  workspace/
+    bin/      # Scripts Binsmith creates (persists across sessions)
+    data/     # Persistent data files
+    tmp/      # Scratch space
 ```
 
-All Lattis flags are supported, including `--server` and `--local`. See the
-Lattis README for the full CLI reference.
+## What the toolkit looks like
 
-## What the agent builds
-
-After a few days of use, a toolkit might look like:
+After a few days of use:
 
 ```
 .lattis/workspace/bin/
@@ -73,95 +68,107 @@ After a few days of use, a toolkit might look like:
   weather       # Weather for a location
   todo          # Manage a simple todo list
   brief         # Daily briefing (composes news, weather, todo)
-  code-map      # Map out a codebase structure
-  code-ref      # Find references to a symbol
+  summarize     # Summarize text or URLs
+  json-extract  # Pull fields from JSON
 ```
 
-Each tool is a standalone, self-contained script that works for both you and
-Binsmith. Python scripts use inline script metadata so dependencies are declared
-in the file itself. Just run the script and `uv` handles the rest.
+Each tool is standalone. Python scripts use inline metadata so dependencies are declared in the file itself:
 
-## How it works
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["httpx"]
+# ///
+"""Fetch a URL and extract text content."""
 
-Binsmith has one tool: `bash`. It runs commands in your project directory with
-`workspace/bin` on the PATH. The workspace persists between runs.
-
-```
-.lattis/
-  lattis.db
-  session_id
-  workspace/
-    bin/      # Scripts the agent creates
-    data/     # Persistent data
-    tmp/      # Scratch space
+# ... implementation
 ```
 
-On each run, the agent sees its current toolkit and is prompted to use
-existing tools before writing one-off commands.
+Just run the script—`uv` handles the rest.
 
-### Architecture
+## Unix philosophy
+
+Binsmith builds tools that compose:
+
+```bash
+# Each tool does one thing
+fetch-url https://news.ycombinator.com
+html2md < page.html
+summarize "key points only"
+
+# Chain them together
+fetch-url "$url" | html2md | summarize --bullets
+```
+
+Tools are prompted to follow conventions:
+- Read from stdin when appropriate
+- Output clean text to stdout
+- Support `--json` for machine-readable output
+- Support `--help` and `--describe` for discoverability
+- Exit 0 on success, non-zero on failure
+
+This isn't just style—it's what makes `fetch-url | html2md | summarize` work.
+
+## Architecture
 
 ```
 ┌──────────────────────────────────────────┐
 │              Clients                     │
-│        TUI  /  Web UI  /  (API)          │
+│        TUI  /  Web UI  /  API            │
 └─────────────────┬────────────────────────┘
-                  │ HTTP + AG-UI streaming
+                  │
                   ▼
 ┌──────────────────────────────────────────┐
 │            Lattis Server                 │
 │   FastAPI · SQLite · Session management  │
 └─────────────────┬────────────────────────┘
-                  │ pydantic-ai
+                  │
                   ▼
 ┌──────────────────────────────────────────┐
-│             Binsmith Agent               │
+│           Binsmith Agent                 │
 │   Dynamic prompt · bash tool · Toolkit   │
 └─────────────────┬────────────────────────┘
-                  │ subprocess
+                  │
                   ▼
 ┌──────────────────────────────────────────┐
 │            File System                   │
-│   Scripts as files · Git-friendly        │
+│      Scripts as files · Git-friendly     │
 └──────────────────────────────────────────┘
 ```
 
-## Models
+Binsmith runs on [Lattis](https://github.com/caesarnine/lattis), which handles the server, TUI, web UI, and persistence. Binsmith itself is just the agent logic and the bash tool.
 
-Default: `google-gla:gemini-3-flash-preview`
+## Running remotely
 
-```bash
-export GEMINI_API_KEY=...     # Google
-export ANTHROPIC_API_KEY=...  # Anthropic
-export OPENAI_API_KEY=...     # OpenAI
-```
+I run Binsmith on a server in my Tailscale network. This lets me:
 
-Switch models in the TUI with `/model set <name>` or via the web UI sidebar.
-Run `/model list` to see available models.
-
-## Web UI
-
-The web UI is bundled with the [Lattis server](https://github.com/caesarnine/lattis). Just run:
+- Start a task on my laptop
+- Check progress from my phone
+- Pick it back up from anywhere
 
 ```bash
-binsmith server
+# On the server
+uvx binsmith server --host 0.0.0.0
+
+# From anywhere else
+uvx binsmith --server http://your-server:8000
 ```
 
-Then open `http://localhost:8000` in your browser.
+See the [Lattis README](https://github.com/caesarnine/lattis) for more on remote setups.
 
 ## TUI commands
 
 ```
 /help                     Show help
 /threads                  List threads
-/thread <id>              Switch to a thread
-/thread new [id]          Create a new thread
-/thread delete <id>       Delete a thread
+/thread <id>              Switch to thread
+/thread new [id]          Create new thread
+/thread delete <id>       Delete thread
 /clear                    Clear current thread
 /model                    Show current model
 /model list [filter]      List models
 /model set <name>         Set model
-/model default            Reset to default
 /quit                     Exit
 ```
 
@@ -169,10 +176,25 @@ Then open `http://localhost:8000` in your browser.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BINSMITH_MODEL` | `google-gla:gemini-3-flash-preview` | Default model |
+| `BINSMITH_MODEL` | `google-gla:gemini-2.0-flash` | Default model |
 | `BINSMITH_LOGFIRE` | `0` | Enable Logfire telemetry |
 
-[Lattis](https://github.com/caesarnine/lattis) configuration (storage, server URLs) is controlled via
-`LATTIS_*` environment variables; see the Lattis README for details.
-By default, Binsmith stores data in `.lattis/` under the project root.
-Override with `LATTIS_DATA_DIR` if needed.
+Lattis configuration (`LATTIS_*` variables) controls storage and server settings—see the Lattis README.
+
+## Requirements
+
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/)
+- An API key for at least one model provider
+
+```bash
+export GEMINI_API_KEY=...     # Google
+export ANTHROPIC_API_KEY=...  # Anthropic
+export OPENAI_API_KEY=...     # OpenAI
+```
+
+## Why "Binsmith"?
+
+It forges tools in `bin/`. A smith that makes bins.
+
+(Also, "toolsmith" was taken.)

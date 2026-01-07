@@ -6,13 +6,14 @@ import time
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import logfire
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 
 from binsmith.env import AGENT_MODEL, first_env, read_bool_env
+from binsmith.linker import link_workspace_bins
 from binsmith.tools import discover_tools, format_tools_section
 from binsmith.workspace import ensure_workspace
 from lattis.plugins import AgentPlugin, AgentRunContext, list_known_models
@@ -374,11 +375,16 @@ def _create_deps(ctx: AgentRunContext) -> AgentDeps:
     )
 
 
+def _on_complete(ctx: AgentRunContext, result: Any) -> None:
+    link_workspace_bins(ctx.workspace)
+
+
 plugin = AgentPlugin(
     id="binsmith",
     name="Binsmith",
     create_agent=_create_agent,
     create_deps=_create_deps,
+    on_complete=_on_complete,
     default_model=DEFAULT_MODEL,
     list_models=lambda: list_known_models(default_model=DEFAULT_MODEL),
 )

@@ -34,6 +34,7 @@ Binsmith is an agent prompt + a workspace.
 - Your project workspace has `workspace/bin` on the PATH
 - When a task is worth repeating, it writes a script into `workspace/bin`
 - Those scripts persist across sessions and can call each other (Unix-style)
+- It can symlink tools into a user-writable bin directory on your PATH (see Configuration)
 
 Over time you end up with a small toolkit of scripts you actually use.
 
@@ -129,6 +130,12 @@ uvx binsmith --server http://your-server:8000
 |----------|---------|-------------|
 | `BINSMITH_MODEL` | `google-gla:gemini-2.0-flash` | Default model |
 | `BINSMITH_LOGFIRE` | `0` | Enable Logfire telemetry |
+| `BINSMITH_LINK_BINS` | `1` | Link tools into a writable PATH directory |
+| `BINSMITH_BIN_DIR` | | Override the link directory (should be on your PATH) |
+
+Binsmith only links tools when it can find a writable PATH directory under your home folder, and it skips names
+that already resolve on PATH to avoid shadowing existing commands. Set `BINSMITH_BIN_DIR` to control the link
+location when you want a specific directory.
 
 Lattis configuration (`LATTIS_*`) controls storage and server settings.
 
@@ -147,4 +154,3 @@ export OPENAI_API_KEY=...     # OpenAI
 ## Why the name
 
 It forges tools into `bin/`.
-

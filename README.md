@@ -1,27 +1,10 @@
 # Binsmith
 
-An AI agent that builds its own toolkit.
+A Lattis agent that accumulates small CLI tools in a persistent workspace.
 
-Most agents are stateless—they solve problems, then forget everything. Binsmith takes a different approach: when it does something useful, it writes a script. That script goes into a persistent toolkit.
+Most chat-style agents are “stateless” in the sense that they don’t leave behind reusable artifacts. Binsmith is configured to turn repeated work into scripts and keep them under `.lattis/workspace/bin`, so later tasks can compose existing tools instead of re-solving the same problem.
 
-Ask it to fetch a webpage, it writes `fetch-url`. Ask it to convert HTML to markdown, it writes `html2md`. A week later, when you ask for a daily briefing, it composes them:
-
-```
-$ brief
-
-# News
-- AI lab announces new model...
-- Tech company acquires startup...
-
-# Weather
-San Francisco: 62°F, partly cloudy
-
-# Your todos
-- [ ] Review PR #42
-- [ ] Write README improvements
-```
-
-That `brief` command didn't exist until you needed it. Now it does, and it builds on tools that already existed. The more you use Binsmith, the more capable it becomes.
+Binsmith is distributed as a [Lattis](https://github.com/caesarnine/lattis) plugin.
 
 ## Quick start
 
@@ -29,26 +12,42 @@ That `brief` command didn't exist until you needed it. Now it does, and it build
 uvx binsmith
 ```
 
-This starts the TUI with Binsmith as the default agent. You can also run the server for access from other devices:
+This starts the TUI with Binsmith as the default agent. To run a server for remote access:
 
 ```bash
 uvx binsmith server
 # Then open http://localhost:8000
 ```
 
-Binsmith is a [Lattis](https://github.com/caesarnine/lattis) plugin. If you want to run it alongside other agents or access it remotely, see the Lattis README.
+Or run via Lattis alongside other agents:
 
-## How it works
-
-Binsmith has one tool: `bash`. It runs commands in your project directory with `workspace/bin` on the PATH. That's it.
-
-The magic is in the prompt. On each run, Binsmith sees its current toolkit and is instructed to:
-
-1. **Check existing tools first** — don't reinvent what's already there
-2. **Build tools for repeated work** — if you do it twice, script it
-3. **Improve, don't duplicate** — enhance existing tools rather than creating variants
-
+```bash
+uv pip install binsmith
+uvx lattis --agent binsmith
 ```
+
+## What it does
+
+Binsmith is an agent prompt + a workspace.
+
+- It runs commands using a single tool: **`bash`**
+- Your project workspace has `workspace/bin` on the PATH
+- When a task is worth repeating, it writes a script into `workspace/bin`
+- Those scripts persist across sessions and can call each other (Unix-style)
+
+Over time you end up with a small toolkit of scripts you actually use.
+
+Example (tools invented over time; names illustrative):
+
+```bash
+fetch-url https://news.ycombinator.com | html2md | summarize --bullets
+brief
+todo add "Review PR #42"
+```
+
+## Workspace layout
+
+```text
 .lattis/
   workspace/
     bin/      # Scripts Binsmith creates (persists across sessions)
@@ -56,23 +55,9 @@ The magic is in the prompt. On each run, Binsmith sees its current toolkit and i
     tmp/      # Scratch space
 ```
 
-## What the toolkit looks like
+## Script format
 
-After a few days of use:
-
-```
-.lattis/workspace/bin/
-  fetch-url     # Fetch a URL, handle retries, extract text
-  html2md       # Convert HTML to clean markdown
-  news          # Top stories from news sources
-  weather       # Weather for a location
-  todo          # Manage a simple todo list
-  brief         # Daily briefing (composes news, weather, todo)
-  summarize     # Summarize text or URLs
-  json-extract  # Pull fields from JSON
-```
-
-Each tool is standalone. Python scripts use inline metadata so dependencies are declared in the file itself:
+Scripts are intended to be standalone and “git-friendly”. Python scripts use `uv` inline metadata so dependencies are declared in the file:
 
 ```python
 #!/usr/bin/env -S uv run --script
@@ -81,85 +66,51 @@ Each tool is standalone. Python scripts use inline metadata so dependencies are 
 # dependencies = ["httpx"]
 # ///
 """Fetch a URL and extract text content."""
-
-# ... implementation
 ```
 
-Just run the script—`uv` handles the rest.
+## Tool conventions
 
-## Unix philosophy
+Binsmith is prompted to keep tools composable and discoverable:
 
-Binsmith builds tools that compose:
+- Prefer stdin/stdout for data flow
+- Produce clean text output by default
+- Support `--json` when machine-readable output makes sense
+- Support `--help` and optionally `--describe`
+- Exit `0` on success, non-zero on failure
+- Reuse or extend existing tools instead of creating near-duplicates
 
-```bash
-# Each tool does one thing
-fetch-url https://news.ycombinator.com
-html2md < page.html
-summarize "key points only"
+The point is to make workflows like `fetch-url | html2md | summarize` viable.
 
-# Chain them together
-fetch-url "$url" | html2md | summarize --bullets
-```
+## How it works (mechanics)
 
-Tools are prompted to follow conventions:
-- Read from stdin when appropriate
-- Output clean text to stdout
-- Support `--json` for machine-readable output
-- Support `--help` and `--describe` for discoverability
-- Exit 0 on success, non-zero on failure
+Binsmith is “just” an agent configuration:
 
-This isn't just style—it's what makes `fetch-url | html2md | summarize` work.
+- It can run shell commands inside the project directory
+- It can see what’s already in `.lattis/workspace/bin`
+- It is instructed to:
+  1. use existing scripts when possible
+  2. write scripts when you hit repetition
+  3. improve existing scripts rather than cloning variants
 
-## Architecture
+Lattis handles the server, UIs, thread persistence, and session state.
 
-```
-┌──────────────────────────────────────────┐
-│              Clients                     │
-│        TUI  /  Web UI  /  API            │
-└─────────────────┬────────────────────────┘
-                  │
-                  ▼
-┌──────────────────────────────────────────┐
-│            Lattis Server                 │
-│   FastAPI · SQLite · Session management  │
-└─────────────────┬────────────────────────┘
-                  │
-                  ▼
-┌──────────────────────────────────────────┐
-│           Binsmith Agent                 │
-│   Dynamic prompt · bash tool · Toolkit   │
-└─────────────────┬────────────────────────┘
-                  │
-                  ▼
-┌──────────────────────────────────────────┐
-│            File System                   │
-│      Scripts as files · Git-friendly     │
-└──────────────────────────────────────────┘
-```
+## Remote usage
 
-Binsmith runs on [Lattis](https://github.com/caesarnine/lattis), which handles the server, TUI, web UI, and persistence. Binsmith itself is just the agent logic and the bash tool.
-
-## Running remotely
-
-I run Binsmith on a server in my Tailscale network. This lets me:
-
-- Start a task on my laptop
-- Check progress from my phone
-- Pick it back up from anywhere
+A common setup is to run the server on a machine that stays up and connect from anywhere:
 
 ```bash
 # On the server
 uvx binsmith server --host 0.0.0.0
 
-# From anywhere else
+# From a client machine
 uvx binsmith --server http://your-server:8000
 ```
 
-See the [Lattis README](https://github.com/caesarnine/lattis) for more on remote setups.
+(If you bind to a public interface, keep it on a private network / VPN.)
 
 ## TUI commands
 
-```
+```text
 /help                     Show help
 /threads                  List threads
 /thread <id>              Switch to thread
@@ -179,7 +130,7 @@ See the [Lattis README](https://github.com/caesarnine/lattis) for more on remote
 | `BINSMITH_MODEL` | `google-gla:gemini-2.0-flash` | Default model |
 | `BINSMITH_LOGFIRE` | `0` | Enable Logfire telemetry |
 
-Lattis configuration (`LATTIS_*` variables) controls storage and server settings—see the Lattis README.
+Lattis configuration (`LATTIS_*`) controls storage and server settings.
 
 ## Requirements
 
@@ -193,8 +144,7 @@ export ANTHROPIC_API_KEY=...  # Anthropic
 export OPENAI_API_KEY=...     # OpenAI
 ```
 
-## Why "Binsmith"?
+## Why the name
 
-It forges tools in `bin/`. A smith that makes bins.
+It forges tools into `bin/`.
 
-(Also, "toolsmith" was taken.)

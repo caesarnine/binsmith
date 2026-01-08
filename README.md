@@ -9,6 +9,7 @@ Binsmith is distributed as a [Lattis](https://github.com/caesarnine/lattis) plug
 ## Quick start
 
 ```bash
+export GOOGLE_API_KEY=... # see below for other providers
 uvx binsmith
 ```
 
@@ -146,7 +147,7 @@ Lattis configuration (`LATTIS_*`) controls storage and server settings.
 - An API key for at least one model provider
 
 ```bash
-export GEMINI_API_KEY=...     # Google
+export GOOGLE_API_KEY=...     # Google
 export ANTHROPIC_API_KEY=...  # Anthropic
 export OPENAI_API_KEY=...     # OpenAI
 ```

@@ -36,7 +36,7 @@ Binsmith is an agent prompt + a workspace.
 - Those scripts persist across sessions and can call each other (Unix-style)
 - It can symlink tools into a user-writable bin directory on your PATH (see Configuration)
 
-Over time you end up with a small toolkit of scripts you actually use.
+Over time you end up with a small toolkit of scripts you and the agent can both use.
 
 Example (tools invented over time; names illustrative):
 

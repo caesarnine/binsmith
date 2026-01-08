@@ -1,6 +1,8 @@
-# Binsmith
-
-A Lattis agent that accumulates small CLI tools in a persistent workspace.
+<p align="center" style="bold">Binsmith</p>
+<p align="center">
+An agent that accumulates small CLI tools in a persistent workspace.
+<img width="90%" height="90%" alt="Screenshot 2026-01-07 at 10 06 38 PM" src="https://github.com/user-attachments/assets/5b6251b8-97d3-4802-b2df-43af5d526381" />
+</p>
 
 Most chat-style agents are “stateless” in the sense that they don’t leave behind reusable artifacts. Binsmith is configured to turn repeated work into scripts and keep them under `.lattis/workspace/bin`, so later tasks can compose existing tools instead of re-solving the same problem.
 

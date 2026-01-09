@@ -151,6 +151,9 @@ Binsmith only links tools when it can find a writable PATH directory under your 
 that already resolve on PATH to avoid shadowing existing commands. Set `BINSMITH_BIN_DIR` to control the link
 location when you want a specific directory.
 
+When auto-picking a link directory, Binsmith prefers `~/.local/bin` (then `~/bin`) if present on your `PATH`, and
+it avoids linking into the Binsmith workspace `bin/` directory or an active virtualenv’s `bin/`.
+
 Lattis configuration (`LATTIS_*`) controls storage and server settings.
 
 ## Requirements

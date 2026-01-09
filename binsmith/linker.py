@@ -11,6 +11,7 @@ BINSMITH_BIN_DIR = "BINSMITH_BIN_DIR"
 BINSMITH_LINK_BINS = "BINSMITH_LINK_BINS"
 
 _SKIP_SUFFIXES = {".md", ".txt", ".json", ".yaml", ".yml"}
+_PREFERRED_HOME_BINS = (Path.home() / ".local" / "bin", Path.home() / "bin")
 
 
 def link_workspace_bins(workspace: Path) -> None:
@@ -18,43 +19,82 @@ def link_workspace_bins(workspace: Path) -> None:
         return
 
     env = os.environ
-    link_dir = _pick_link_dir(env)
+    excluded_dirs = _excluded_link_dirs(env, workspace)
+    link_dir = _pick_link_dir(env, excluded=excluded_dirs)
     if link_dir is None:
         return
 
     bin_dir = workspace / "bin"
     if not bin_dir.exists():
+        _prune_workspace_links(link_dir, bin_dir, set())
         return
 
+    tool_names: set[str] = set()
     for path in sorted(bin_dir.iterdir()):
         if not _is_tool_path(path):
             continue
+        tool_names.add(path.name)
         _link_tool(path, link_dir, bin_dir, env)
+    _prune_workspace_links(link_dir, bin_dir, tool_names)
 
 
-def _pick_link_dir(env: Mapping[str, str]) -> Path | None:
-    for candidate in _candidate_link_dirs(env):
+def _excluded_link_dirs(env: Mapping[str, str], workspace: Path) -> set[Path]:
+    excluded = {_safe_resolve(workspace / "bin")}
+
+    virtual_env = env.get("VIRTUAL_ENV")
+    if virtual_env:
+        excluded.add(_safe_resolve(Path(virtual_env) / "bin"))
+
+    return excluded
+
+
+def _pick_link_dir(env: Mapping[str, str], *, excluded: set[Path] | None = None) -> Path | None:
+    excluded_resolved = {_safe_resolve(path) for path in excluded or set()}
+    for candidate in _candidate_link_dirs(env, excluded_resolved=excluded_resolved):
         if _ensure_dir(candidate):
             return candidate
     return None
 
 
-def _candidate_link_dirs(env: Mapping[str, str]) -> list[Path]:
+def _candidate_link_dirs(env: Mapping[str, str], *, excluded_resolved: set[Path] | None = None) -> list[Path]:
     explicit = env.get(BINSMITH_BIN_DIR)
     if explicit:
-        return [Path(explicit).expanduser()]
+        resolved = _safe_resolve(Path(explicit).expanduser())
+        if excluded_resolved and resolved in excluded_resolved:
+            return []
+        return [resolved]
 
     home = _safe_resolve(Path.home())
     seen: set[str] = set()
     candidates: list[Path] = []
     for entry in _path_entries(env):
         resolved = str(_safe_resolve(entry))
+        if excluded_resolved and Path(resolved) in excluded_resolved:
+            continue
         if resolved in seen:
             continue
         seen.add(resolved)
         if _is_under_home(entry, home):
             candidates.append(entry)
-    return candidates
+
+    preferred_resolved = {str(_safe_resolve(path)) for path in _PREFERRED_HOME_BINS}
+    preferred: list[Path] = []
+    rest: list[Path] = []
+    for candidate in candidates:
+        if str(_safe_resolve(candidate)) in preferred_resolved:
+            preferred.append(candidate)
+        else:
+            rest.append(candidate)
+
+    def _preference_key(path: Path) -> int:
+        resolved = str(_safe_resolve(path))
+        for idx, preferred_path in enumerate(_PREFERRED_HOME_BINS):
+            if resolved == str(_safe_resolve(preferred_path)):
+                return idx
+        return len(_PREFERRED_HOME_BINS)
+
+    preferred.sort(key=_preference_key)
+    return preferred + rest
 
 
 def _path_entries(env: Mapping[str, str]) -> list[Path]:
@@ -107,7 +147,7 @@ def _link_tool(
     if target.is_symlink():
         if _samefile(target, source):
             return
-        if not target.exists() and _points_to_workspace(target, workspace_bin):
+        if _points_to_workspace(target, workspace_bin):
             _replace_symlink(target, source)
         return
 
@@ -172,3 +212,22 @@ def _create_symlink(target: Path, source: Path) -> None:
         target.symlink_to(source)
     except OSError:
         return
+
+
+def _prune_workspace_links(link_dir: Path, workspace_bin: Path, tool_names: set[str]) -> None:
+    try:
+        entries = list(link_dir.iterdir())
+    except OSError:
+        return
+
+    for entry in entries:
+        if not entry.is_symlink():
+            continue
+        if entry.name in tool_names:
+            continue
+        if not _points_to_workspace(entry, workspace_bin):
+            continue
+        try:
+            entry.unlink()
+        except OSError:
+            continue

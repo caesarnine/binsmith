@@ -15,11 +15,13 @@ export GOOGLE_API_KEY=... # see below for other providers
 uvx binsmith
 ```
 
-This starts the TUI with Binsmith as the default agent. To run a server for remote access:
+This starts a local server and opens the TUI. A web UI is also available at http://localhost:8000 while running.
+
+To run the server only (no TUI):
 
 ```bash
 uvx binsmith server
-# Then open http://localhost:8000
+# Open http://localhost:8000 for the web UI
 ```
 
 Or run via Lattis alongside other agents:
@@ -106,13 +108,22 @@ A common setup is to run the server on a machine that stays up and connect from 
 # On the server
 uvx binsmith server --host 0.0.0.0
 
-# From a client machine
+# From a client machine (TUI)
 uvx binsmith --server http://your-server:8000
+
+# Or open http://your-server:8000 in a browser for the web UI
 ```
 
 (If you bind to a public interface, keep it on a private network / VPN.)
 
-## TUI commands
+## Interfaces
+
+Binsmith provides two interfaces, both connecting to the same server and sharing threads:
+
+- **TUI** — Terminal interface, launched by default with `uvx binsmith`
+- **Web UI** — Browser interface at http://localhost:8000
+
+### TUI commands
 
 ```text
 /help                     Show help

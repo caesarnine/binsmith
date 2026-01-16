@@ -4,7 +4,7 @@ An agent that accumulates small CLI tools in a persistent workspace.
 <img width="90%" height="90%" alt="Binsmith" src="https://github.com/user-attachments/assets/6d42d9d4-652c-45a5-b880-35bc0a62152a" />
 </p>
 
-Most chat-style agents are “stateless” in the sense that they don’t leave behind reusable artifacts. Binsmith is configured to turn repeated work into scripts and keep them under `.lattis/workspace/bin`, so later tasks can compose existing tools instead of re-solving the same problem.
+Most chat-style agents are “stateless” in the sense that they don’t leave behind reusable artifacts. Binsmith is configured to turn repeated work into scripts and keep them under `workspace/bin` (by default `~/.binsmith/workspace/bin`), so later tasks can compose existing tools instead of re-solving the same problem.
 
 Binsmith is distributed as a [Lattis](https://github.com/caesarnine/lattis) plugin.
 
@@ -16,6 +16,11 @@ uvx binsmith
 ```
 
 This starts a local server and opens the TUI. A web UI is also available at http://localhost:8000 while running.
+
+By default, Binsmith uses a global data directory at `~/.binsmith/` so your tools carry across projects. To keep
+storage in the current project directory, run `uvx binsmith --project` (stores data in `.binsmith/`).
+If you run Binsmith via `uvx lattis --agent binsmith`, storage follows your Lattis configuration (`LATTIS_*` env vars).
+This does not change where commands run: the agent still runs shell commands in the project directory.
 
 To run the server only (no TUI):
 
@@ -54,7 +59,7 @@ todo add "Review PR #42"
 ## Workspace layout
 
 ```text
-.lattis/
+~/.binsmith/
   workspace/
     bin/      # Scripts Binsmith creates (persists across sessions)
     data/     # Persistent data files
@@ -92,7 +97,7 @@ The point is to make workflows like `fetch-url | html2md | summarize` viable.
 Binsmith is “just” an agent configuration:
 
 - It can run shell commands inside the project directory
-- It can see what’s already in `.lattis/workspace/bin`
+- It can see what’s already in `workspace/bin`
 - It is instructed to:
   1. use existing scripts when possible
   2. write scripts when you hit repetition
@@ -146,6 +151,11 @@ Binsmith provides two interfaces, both connecting to the same server and sharing
 | `BINSMITH_LOGFIRE` | `0` | Enable Logfire telemetry |
 | `BINSMITH_LINK_BINS` | `1` | Link tools into a writable PATH directory |
 | `BINSMITH_BIN_DIR` | | Override the link directory (should be on your PATH) |
+
+Binsmith CLI flags:
+
+- `--global` (default) — store data in `~/.binsmith/`
+- `--project` — store data in `.binsmith/` under the current directory
 
 Binsmith only links tools when it can find a writable PATH directory under your home folder, and it skips names
 that already resolve on PATH to avoid shadowing existing commands. Set `BINSMITH_BIN_DIR` to control the link

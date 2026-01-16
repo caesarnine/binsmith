@@ -1,2 +1,3 @@
 .lattis/
+.binsmith/
 binsmith/__pycache__/
